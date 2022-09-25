@@ -143,6 +143,7 @@ if [[ ${TU_FETCH} = "Y" ]]; then
     if [[ -n "${CUSTOM_PEERS}" ]]; then
       topo="$(cat "${TOPOLOGY}".tmp)"
       IFS='|' read -ra cpeers <<< "${CUSTOM_PEERS}"
+      custom_peers=[]
       for cpeer in "${cpeers[@]}"; do
         IFS=',' read -ra cpeer_attr <<< "${cpeer}"
         case ${#cpeer_attr[@]} in
@@ -162,8 +163,9 @@ if [[ ${TU_FETCH} = "Y" ]]; then
         fi
         ! isNumber ${port} && echo "ERROR: Invalid port number '${port}'. Please check CUSTOM_PEERS definition" && continue
         ! isNumber ${valency} && echo "ERROR: Invalid valency number '${valency}'. Please check CUSTOM_PEERS definition" && continue
-        topo=$(jq '.Producers += [{"addr": $addr, "port": $port|tonumber, "valency": $valency|tonumber}]' --arg addr "${addr}" --arg port ${port} --arg valency ${valency} <<< "${topo}")
+        custom_peers=$(jq '. += [{"addr": $addr, "port": $port|tonumber, "valency": $valency|tonumber}]' --arg addr "${addr}" --arg port ${port} --arg valency ${valency} <<< "${custom_peers}")
       done
+      topo=$(jq -s '{Producers: (.[0] + .[1])}' <(echo ${custom_peers}) <(echo ${topo} | jq .Producers))
       echo "${topo}" | jq -r . >/dev/null 2>&1 && echo "${topo}" > "${TOPOLOGY}".tmp
     fi
     mv "${TOPOLOGY}".tmp "${TOPOLOGY}"
